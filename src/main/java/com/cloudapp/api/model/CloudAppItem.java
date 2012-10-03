@@ -10,8 +10,14 @@ import com.cloudapp.api.CloudAppException;
 public interface CloudAppItem {
 
   enum Type {
-    AUDIO, BOOKMARK, IMAGE, UNKNOWN, VIDEO;
+    AUDIO, BOOKMARK, IMAGE, UNKNOWN, VIDEO, TEXT, ARCHIVE;
   }
+
+  /**
+   * @return The id of this resource.
+   * @throws CloudAppExtion
+   */
+  Long getId() throws CloudAppException;
 
   /**
    * @return A unique URL that points to this resource. ie:
@@ -86,11 +92,10 @@ public interface CloudAppItem {
    * @throws CloudAppExtion
    */
   String getRedirectUrl() throws CloudAppException;
-  
+
   /**
-   * @return A url that points to a thumbnail of this item if one is available, 
-   *         null otherwise. ie: "http://thumbs.cl.ly/2wr4"
-   * @throws CloudAppException
+   * @return
+   * @throws CloudAppExtion
    */
   String getThumbnailUrl() throws CloudAppException;
 

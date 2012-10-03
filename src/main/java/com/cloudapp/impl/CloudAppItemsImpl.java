@@ -1,12 +1,16 @@
 package com.cloudapp.impl;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
 import org.apache.http.client.ClientProtocolException;
@@ -27,18 +31,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.cloudapp.api.CloudAppException;
-import com.cloudapp.api.model.CloudAppProgressListener;
 import com.cloudapp.api.model.CloudAppItem;
 import com.cloudapp.impl.model.CloudAppItemImpl;
 
 public class CloudAppItemsImpl extends CloudAppBase {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CloudAppItemsImpl.class);
-  private static final String ITEMS_URL = MY_CL_LY + "/items";
+  private static final String ITEMS_PATH = "/items";
+  private static final String ITEMS_URL = ITEMS_PATH;
   private static final String NEW_ITEM_URL = ITEMS_URL + "/new";
 
-  public CloudAppItemsImpl(DefaultHttpClient client) {
-    super(client);
+  protected CloudAppItemsImpl(DefaultHttpClient client, Host host) {
+    super(client, host);
   }
 
   /**
@@ -110,25 +114,33 @@ public class CloudAppItemsImpl extends CloudAppBase {
         perPage = 5;
       if (page == 0)
         page = 1;
-      
-      List<String> params = new ArrayList<String>();
-      params.add("page="+page);
-      params.add("per_page="+perPage);
-      params.add("deleted="+ (showDeleted ? "true" : "false"));
-      
-      if (type != null)
-      {
-        params.add("type=" + type.toString().toLowerCase());
+
+      StringBuilder query = new StringBuilder();
+      query.append("page=" + page);
+      query.append("&per_page=" + perPage);
+      query.append("&deleted=" + showDeleted);
+      if (type != null) {
+        query.append("&type=" + type.toString().toLowerCase());
       }
-      if (source != null)
-      {
-        params.add("source=" + source);
+      if (source != null) {
+          query.append("&source=" + source);
       }
 
-      String queryString = StringUtils.join(params.iterator(), "&");
-      HttpGet req = new HttpGet(ITEMS_URL + "?" + queryString);
+      URI uri = new URI(host.getScheme(), null, host.getHost(), host.getPort(), ITEMS_PATH, query.toString(), null);
+      HttpGet req = new HttpGet(uri);
       req.addHeader("Accept", "application/json");
-      
+//      HttpParams params = new BasicHttpParams();
+//      params.setIntParameter("page", page);
+//      params.setIntParameter("per_page", perPage);
+//      params.setBooleanParameter("deleted", showDeleted);
+//      if (type != null) {
+//        params.setParameter("type", type.toString().toLowerCase());
+//      }
+//      if (source != null) {
+//        params.setParameter("source", source);
+//      }
+//      req.setParams(params);
+
       HttpResponse response = client.execute(req);
       int status = response.getStatusLine().getStatusCode();
       String responseBody = EntityUtils.toString(response.getEntity());
@@ -153,7 +165,15 @@ public class CloudAppItemsImpl extends CloudAppBase {
     } catch (JSONException e) {
       LOGGER.error("Something went wrong trying to handle JSON.", e);
       throw new CloudAppException(500, "Something went wrong trying to handle JSON.", e);
+    } catch (URISyntaxException e) {
+        LOGGER.error("Something went wrong trying to contact the CloudApp API.", e);
+        throw new CloudAppException(500,
+                "Something went wrong trying to contact the CloudApp API", e);
     }
+  }
+  
+  public CloudAppItem upload(File file) throws CloudAppException, FileNotFoundException {
+  	return upload(new FileInputStream(file), file.getName(), file.length());
   }
 
   /**
@@ -162,14 +182,10 @@ public class CloudAppItemsImpl extends CloudAppBase {
    * 
    * @see com.cloudapp.api.CloudAppItems#upload(java.io.File)
    */
-  public CloudAppItem upload(File file) throws CloudAppException {
-    return upload( file, CloudAppProgressListener.NO_OP );
-  }
-
-  public CloudAppItem upload(File file, CloudAppProgressListener listener) throws CloudAppException {
+  public CloudAppItem upload(InputStream is, String name, long length) throws CloudAppException {
     try {
       // Do a GET request so we have the S3 endpoint
-      HttpGet req = new HttpGet(NEW_ITEM_URL);
+      HttpGet req = new HttpGet(host.createUri(NEW_ITEM_URL));
       req.addHeader("Accept", "application/json");
       HttpResponse response = client.execute(req);
       int status = response.getStatusLine().getStatusCode();
@@ -187,7 +203,7 @@ public class CloudAppItemsImpl extends CloudAppBase {
             null);
       }
 
-      return uploadToAmazon(json, file, listener);
+      return uploadToAmazon(json, is, name, length);
 
     } catch (ClientProtocolException e) {
       LOGGER.error("Something went wrong trying to contact the CloudApp API.", e);
@@ -214,7 +230,7 @@ public class CloudAppItemsImpl extends CloudAppBase {
    * @throws ParseException
    * @throws IOException
    */
-  private CloudAppItem uploadToAmazon(JSONObject json, File file, CloudAppProgressListener listener) throws JSONException,
+  private CloudAppItem uploadToAmazon(JSONObject json, InputStream is, String name, long length) throws JSONException,
       CloudAppException, ParseException, IOException {
     JSONObject params = json.getJSONObject("params");
     MultipartEntity entity = new MultipartEntity(HttpMultipartMode.BROWSER_COMPATIBLE);
@@ -228,7 +244,7 @@ public class CloudAppItemsImpl extends CloudAppBase {
 
     // Add the actual file.
     // We have to use the 'file' parameter for the S3 storage.
-    InputStreamBody stream = new CloudAppInputStream(file, listener);
+    InputStreamBody stream = new CloudAppInputStream(is, name, length);
     entity.addPart("file", stream);
 
     HttpPost uploadRequest = new HttpPost(json.getString("url"));

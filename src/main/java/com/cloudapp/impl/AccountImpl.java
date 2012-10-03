@@ -15,14 +15,14 @@ import com.cloudapp.impl.model.CloudAppAccountStatsImpl;
 
 public class AccountImpl extends CloudAppBase {
 
-  private static final String REGISTER_URL = MY_CL_LY + "/register";
-  private static final String ACCOUNT_URL = MY_CL_LY + "/account";
+  private static final String REGISTER_URL = "/register";
+  private static final String ACCOUNT_URL = "/account";
   private static final String ACCOUNT_STATS_URL = ACCOUNT_URL + "/stats";
-  private static final String RESET_URL = MY_CL_LY + "/reset";
+  private static final String RESET_URL = "/reset";
   private static final Logger LOGGER = LoggerFactory.getLogger(AccountImpl.class);
 
-  protected AccountImpl(DefaultHttpClient client) {
-    super(client);
+  protected AccountImpl(DefaultHttpClient client, Host host) {
+    super(client, host);
   }
 
   /**
@@ -39,7 +39,7 @@ public class AccountImpl extends CloudAppBase {
       user.put("private_items", (security == DefaultSecurity.PRIVATE) ? true : false);
       json.put("user", user);
 
-      json = (JSONObject) executePut(ACCOUNT_URL, json.toString(), 200);
+      json = (JSONObject) executePut(host.createUri(ACCOUNT_URL), json.toString(), 200);
       return new CloudAppAccountImpl(json);
 
     } catch (JSONException e) {
@@ -63,7 +63,7 @@ public class AccountImpl extends CloudAppBase {
       user.put("current_password", currentPassword);
       json.put("user", user);
 
-      json = (JSONObject) executePut(ACCOUNT_URL, json.toString(), 200);
+      json = (JSONObject) executePut(host.createUri(ACCOUNT_URL), json.toString(), 200);
       return new CloudAppAccountImpl(json);
 
     } catch (JSONException e) {
@@ -87,7 +87,7 @@ public class AccountImpl extends CloudAppBase {
       user.put("current_password", currentPassword);
       json.put("user", user);
 
-      json = (JSONObject) executePut(ACCOUNT_URL, json.toString(), 200);
+      json = (JSONObject) executePut(host.createUri(ACCOUNT_URL), json.toString(), 200);
       return new CloudAppAccountImpl(json);
 
     } catch (JSONException e) {
@@ -157,7 +157,7 @@ public class AccountImpl extends CloudAppBase {
       user.put("domain_home_page", domainHomePage);
       json.put("user", user);
 
-      json = (JSONObject) executePut(ACCOUNT_URL, json.toString(), 200);
+      json = (JSONObject) executePut(host.createUri(ACCOUNT_URL), json.toString(), 200);
       return new CloudAppAccountImpl(json);
 
     } catch (JSONException e) {

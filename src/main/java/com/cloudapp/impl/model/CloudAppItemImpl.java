@@ -14,6 +14,10 @@ public class CloudAppItemImpl extends CloudAppModel implements CloudAppItem {
     this.json = json;
   }
 
+  public Long getId() throws CloudAppException {
+    return getLong("id");
+  }
+
   public String getHref() throws CloudAppException {
     return getString("href");
   }
@@ -31,8 +35,8 @@ public class CloudAppItemImpl extends CloudAppModel implements CloudAppItem {
   }
 
   public boolean isTrashed() throws CloudAppException {
-    String d = getString("deleted_at");
-    return !(d == null || d == "null");
+    Date d = getDeletedAt();
+    return d != null;
   }
 
   public String getUrl() throws CloudAppException {
@@ -67,14 +71,13 @@ public class CloudAppItemImpl extends CloudAppModel implements CloudAppItem {
   public String getRedirectUrl() throws CloudAppException {
     return getString("redirect_url");
   }
-  
+
   public String getThumbnailUrl() throws CloudAppException {
-    if (json.has("thumbnail_url")) {
-      return getString("thumbnail_url");
-    }
-    else {
-      return null;
-    }
+    String key ="thumbnail_url";
+    String url = null;
+    if (json.has(key))
+        url = getString("thumbnail_url");
+    return url;
   }
 
   public String getSource() throws CloudAppException {
@@ -102,7 +105,7 @@ public class CloudAppItemImpl extends CloudAppModel implements CloudAppItem {
   public Date getDeletedAt() throws CloudAppException {
     try {
       String d = getString("deleted_at");
-      return format.parse(d);
+      return (d == null || "".equals(d.trim()) || "null".equals(d)) ? null : format.parse(d);
     } catch (ParseException e) {
       throw new CloudAppException(500, "Could not parse the date.", e);
     }
